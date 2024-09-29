@@ -30,9 +30,54 @@
             background: rgba(0, 0, 0, 0.8);
             padding: 10px;
             border-radius: 5px;
+            display: none;
+        }
+        #store-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #upgrade-circle {
+            position: absolute;
+            top: 100px;
+            left: calc(50% - 100px);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
         }
         .upgrade {
-            margin-bottom: 5px;
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #555;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        #purchase-button {
+            position: absolute;
+            bottom: 10px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -41,9 +86,10 @@
         <p>Punkte: <span id="score">0</span></p>
         <p>Tank: <progress id="fuel" value="100" max="100"></progress></p>
     </div>
+    <button id="store-button">Store</button>
     <div id="upgrade-panel">
-        <h3>Upgrades</h3>
-        <div id="upgrades"></div>
+        <div id="upgrade-circle"></div>
+        <button id="purchase-button">Kaufen</button>
     </div>
     <canvas id="gameCanvas"></canvas>
     <script>
@@ -61,6 +107,7 @@
         let gravity = 0.1;
         let speed = 5;
         let gameOver = false;
+        let currentUpgradeIndex = -1;
 
         // Upgrade System
         const ships = [
@@ -113,23 +160,34 @@
             });
         }
 
-        // Upgrades anzeigen
+        // Upgrade Store
         function renderUpgrades() {
-            const upgradeDiv = document.getElementById('upgrades');
-            upgradeDiv.innerHTML = '';
+            const upgradeCircle = document.getElementById('upgrade-circle');
+            upgradeCircle.innerHTML = '';
             const upgrades = ships[currentShipIndex].upgrades;
             upgrades.forEach((upgrade, index) => {
+                const angle = (index / upgrades.length) * Math.PI;
+                const x = 100 * Math.cos(angle) + 100; // X-Koordinate für Kreisdarstellung
+                const y = 100 * Math.sin(angle) + 100; // Y-Koordinate für Kreisdarstellung
+
                 const div = document.createElement('div');
                 div.className = 'upgrade';
-                div.innerHTML = `Upgrade ${index + 1}: Preis ${upgrade.price} pinke Gems`;
-                div.onclick = () => buyUpgrade(index);
-                upgradeDiv.appendChild(div);
+                div.innerHTML = `${upgrade.price}g`;
+                div.style.left = `${x}px`;
+                div.style.top = `${y}px`;
+                div.onclick = () => {
+                    if (currentUpgradeIndex !== index) {
+                        currentUpgradeIndex = index;
+                        updatePurchaseButton();
+                    }
+                };
+                upgradeCircle.appendChild(div);
             });
         }
 
         // Funktion, um Upgrades zu kaufen
-        function buyUpgrade(upgradeIndex) {
-            const upgrade = ships[currentShipIndex].upgrades[upgradeIndex];
+        function buyUpgrade() {
+            const upgrade = ships[currentShipIndex].upgrades[currentUpgradeIndex];
             if (score >= upgrade.price) {
                 score -= upgrade.price;
                 if (upgrade.reward.m) ship.maxFuel += upgrade.reward.m; // Max. Fuel erhöhen
@@ -137,6 +195,19 @@
                     currentShipIndex++; // Zum nächsten Schiff wechseln
                     renderUpgrades(); // Upgrades neu rendern
                 }
+                currentUpgradeIndex = -1; // Upgrade zurücksetzen
+                updatePurchaseButton();
+            }
+        }
+
+        function updatePurchaseButton() {
+            const purchaseButton = document.getElementById('purchase-button');
+            const upgrade = ships[currentShipIndex].upgrades[currentUpgradeIndex];
+            if (upgrade) {
+                purchaseButton.style.display = 'block';
+                purchaseButton.innerText = `Kaufen (${upgrade.price}g)`;
+            } else {
+                purchaseButton.style.display = 'none';
             }
         }
 
@@ -193,8 +264,17 @@
             requestAnimationFrame(update);
         }
 
+        // Button zum Öffnen des Upgrade-Stores
+        document.getElementById('store-button').onclick = () => {
+            const upgradePanel = document.getElementById('upgrade-panel');
+            upgradePanel.style.display = upgradePanel.style.display === 'none' ? 'block' : 'none';
+            renderUpgrades();
+        };
+
+        // Kaufen Button
+        document.getElementById('purchase-button').onclick = buyUpgrade;
+
         // Spiel starten und Upgrades anzeigen
-        renderUpgrades();
         update();
     </script>
 </body>
