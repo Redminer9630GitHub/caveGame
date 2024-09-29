@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Raumschiff in der Hölle</title>
+    <title>Cave Game</title>
     <style>
         body {
             margin: 0;
@@ -14,7 +14,7 @@
         #gameCanvas {
             display: block;
             margin: 0 auto;
-            background-color: #1a1a1a;
+            background-color: #2c2c2c;
         }
         #info {
             position: absolute;
@@ -23,6 +23,45 @@
             transform: translateX(-50%);
             text-align: center;
             z-index: 1;
+            font-size: 20px;
+        }
+        #tankContainer {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 200px;
+            height: 20px;
+            background-color: #555;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            overflow: hidden;
+            z-index: 1;
+        }
+        #tankBar {
+            width: 100%;
+            height: 100%;
+            background-color: #00ff00;
+        }
+        #abilities {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1;
+        }
+        .ability {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background-color: rgba(50, 50, 50, 0.8);
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .ability img {
+            width: 24px;
+            height: 24px;
         }
         #gameOver {
             position: absolute;
@@ -44,13 +83,33 @@
             display: none;
             cursor: pointer;
             z-index: 2;
+            background-color: #444;
+            border: 2px solid #fff;
+            border-radius: 5px;
+            color: #fff;
         }
     </style>
 </head>
 <body>
     <div id="info">
-        <div>Punkte: <span id="score">0</span></div>
-        <div>Tank: <span id="tank">100</span>%</div>
+        <div>Score: <span id="score">0</span></div>
+    </div>
+    <div id="tankContainer">
+        <div id="tankBar"></div>
+    </div>
+    <div id="abilities">
+        <div class="ability">
+            <img src="fuel.png" alt="Fuel">
+            <span>Fuel Engine: <span id="fuel_engine">1</span> +<span id="fuel_percentage">10</span>%</span>
+        </div>
+        <div class="ability">
+            <img src="acceleration.png" alt="Acceleration">
+            <span>Acceleration Engine: <span id="acceleration_engine">1</span> +<span id="acceleration_percentage">10</span>%</span>
+        </div>
+        <div class="ability">
+            <img src="attraction.png" alt="Attraction">
+            <span>Attraction Engine: <span id="attraction_engine">1</span> +<span id="attraction_percentage">10</span>%</span>
+        </div>
     </div>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <div id="gameOver">Game Over</div>
@@ -61,7 +120,15 @@
         const ctx = canvas.getContext('2d');
 
         const scoreElement = document.getElementById('score');
-        const tankElement = document.getElementById('tank');
+        const tankBar = document.getElementById('tankBar');
+
+        const fuelEngine = document.getElementById('fuel_engine');
+        const fuelPercentage = document.getElementById('fuel_percentage');
+        const accelerationEngine = document.getElementById('acceleration_engine');
+        const accelerationPercentage = document.getElementById('acceleration_percentage');
+        const attractionEngine = document.getElementById('attraction_engine');
+        const attractionPercentage = document.getElementById('attraction_percentage');
+
         const gameOverElement = document.getElementById('gameOver');
         const restartButton = document.getElementById('restart');
 
@@ -83,37 +150,36 @@
                 this.width = 40;
                 this.height = 40;
                 this.x = canvasWidth / 2;
-                this.y = canvasHeight - this.height - 10;
+                this.y = canvasHeight / 2;
                 this.speed = 5;
                 this.color = 'white';
                 this.tank = 100;
                 this.score = 0;
-                this.upgrades = 0;
+                this.upgrades = {
+                    fuel: 1,
+                    acceleration: 1,
+                    attraction: 1
+                };
+                this.upgradePercent = {
+                    fuel: 10,
+                    acceleration: 10,
+                    attraction: 10
+                };
             }
 
             draw() {
                 ctx.fillStyle = this.color;
                 ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x - this.width / 2, this.y + this.height);
-                ctx.lineTo(this.x + this.width / 2, this.y + this.height);
+                ctx.moveTo(this.x, this.y - this.height / 2);
+                ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2);
+                ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2);
                 ctx.closePath();
                 ctx.fill();
             }
 
             update() {
-                if (keys['ArrowLeft'] && this.x > this.width / 2) {
-                    this.x -= this.speed;
-                }
-                if (keys['ArrowRight'] && this.x < canvasWidth - this.width / 2) {
-                    this.x += this.speed;
-                }
-                if (keys['ArrowUp'] && this.y > this.height) {
-                    this.y -= this.speed;
-                }
-                if (keys['ArrowDown'] && this.y < canvasHeight - this.height - 10) {
-                    this.y += this.speed;
-                }
+                // Bewegung wird durch die Kamera simuliert
+                // Hier könnte man später die Bewegungslogik hinzufügen
             }
         }
 
@@ -122,8 +188,8 @@
                 this.x = x;
                 this.y = y;
                 this.radius = 10;
-                this.type = type; // 'yellow' or 'pink'
-                this.color = type === 'yellow' ? 'yellow' : 'pink';
+                this.type = type; // 'yellow' oder 'pink'
+                this.color = type === 'yellow' ? 'yellow' : '#d63384'; // Dunkelere Farbe für pink
                 this.collected = false;
             }
 
@@ -160,6 +226,9 @@
         let platforms = [];
         let gameOver = false;
 
+        // Hintergrundbewegung
+        let bgOffset = 0;
+
         function init() {
             spaceship = new Spaceship();
             gems = [];
@@ -168,66 +237,135 @@
             gameOverElement.style.display = 'none';
             restartButton.style.display = 'none';
             scoreElement.textContent = spaceship.score;
-            tankElement.textContent = spaceship.tank;
-            // Erzeuge einige Gems und Plattformen
-            for (let i = 0; i < 10; i++) {
-                let type = Math.random() > 0.5 ? 'yellow' : 'pink';
-                gems.push(new Gem(Math.random() * (canvasWidth - 20) + 10, Math.random() * (canvasHeight - 100) + 50, type));
+            tankBar.style.width = spaceship.tank + '%';
+
+            // Reset Fähigkeiten
+            spaceship.upgrades = { fuel: 1, acceleration: 1, attraction: 1 };
+            spaceship.upgradePercent = { fuel: 10, acceleration: 10, attraction: 10 };
+            updateAbilitiesUI();
+
+            // Erzeuge Gems
+            for (let i = 0; i < 50; i++) {
+                let type = Math.random() > 0.8 ? 'pink' : 'yellow'; // Pink seltener
+                let x = Math.random() * (canvasWidth - 20) + 10;
+                let y = Math.random() * 3000 - 1500; // Hölle sehr weit (±1500px)
+                gems.push(new Gem(x, y, type));
             }
-            for (let i = 1; i <= 5; i++) {
-                platforms.push(new Platform(Math.random() * (canvasWidth - 100), Math.random() * (canvasHeight - 200) + 100, i));
+
+            // Erzeuge Plattformen
+            for (let i = 1; i <= 50; i++) {
+                let x = Math.random() * (canvasWidth - 100);
+                let y = i * 300; // Mindesthöhe von 300px zwischen den Plattformen
+                platforms.push(new Platform(x, y, i));
             }
+
+            bgOffset = 0;
+        }
+
+        function updateAbilitiesUI() {
+            fuelEngine.textContent = spaceship.upgrades.fuel;
+            fuelPercentage.textContent = spaceship.upgradePercent.fuel;
+            accelerationEngine.textContent = spaceship.upgrades.acceleration;
+            accelerationPercentage.textContent = spaceship.upgradePercent.acceleration;
+            attractionEngine.textContent = spaceship.upgrades.attraction;
+            attractionPercentage.textContent = spaceship.upgradePercent.attraction;
         }
 
         function update() {
-            spaceship.update();
-
             // Tankverbrauch
             spaceship.tank -= 0.05;
             if (spaceship.tank <= 0) {
                 gameOver = true;
             }
 
-            // Kollision mit Gems
+            // Bewegungsgeschwindigkeit basierend auf Upgrades
+            let currentSpeed = spaceship.speed + spaceship.upgrades.acceleration;
+
+            if (keys['ArrowLeft']) {
+                bgOffset += currentSpeed;
+            }
+            if (keys['ArrowRight']) {
+                bgOffset -= currentSpeed;
+            }
+            if (keys['ArrowUp']) {
+                bgOffset += currentSpeed;
+            }
+            if (keys['ArrowDown']) {
+                bgOffset -= currentSpeed;
+            }
+
+            // Update Gems
             gems.forEach(gem => {
                 if (!gem.collected) {
+                    // Simuliere Bewegung nach oben
+                    gem.y += currentSpeed;
+                    if (gem.y > canvasHeight + 50) {
+                        gem.y = -50;
+                        gem.x = Math.random() * (canvasWidth - 20) + 10;
+                    }
+
+                    // Kollision mit Raumschiff (in der Mitte)
                     let dist = Math.hypot(spaceship.x - gem.x, spaceship.y - gem.y);
                     if (dist < spaceship.width / 2 + gem.radius) {
                         gem.collected = true;
                         if (gem.type === 'yellow') {
                             spaceship.score += 10;
                         } else if (gem.type === 'pink') {
-                            spaceship.upgrades += 1;
-                            spaceship.speed = 5 + spaceship.upgrades; // Beispiel-Upgrade
+                            spaceship.upgrades.fuel = Math.min(spaceship.upgrades.fuel + 1, 5);
+                            spaceship.upgradePercent.fuel = Math.min(spaceship.upgradePercent.fuel + 10, 100);
+                            // Beispiel: Du kannst weitere Upgrades hinzufügen
+                            // spaceship.upgrades.acceleration = Math.min(spaceship.upgrades.acceleration + 1, 5);
+                            // spaceship.upgradePercent.acceleration = Math.min(spaceship.upgradePercent.acceleration + 10, 100);
                         }
                         scoreElement.textContent = spaceship.score;
+                        updateAbilitiesUI();
                     }
                 }
             });
 
-            // Kollision mit Plattformen
+            // Update Plattformen
             platforms.forEach(platform => {
+                // Simuliere Bewegung nach oben
+                platform.y += currentSpeed;
+                if (platform.y > canvasHeight + 10) {
+                    platform.y = -10;
+                    platform.x = Math.random() * (canvasWidth - platform.width);
+                    platform.number = platforms.length + 1;
+                }
+
+                // Kollision mit Plattformen (für Tankauffüllung)
                 if (spaceship.x > platform.x && spaceship.x < platform.x + platform.width &&
                     spaceship.y + spaceship.height / 2 > platform.y && spaceship.y - spaceship.height / 2 < platform.y + platform.height) {
                     spaceship.tank = Math.min(spaceship.tank + 20, 100);
-                    tankElement.textContent = spaceship.tank.toFixed(0);
+                    tankBar.style.width = spaceship.tank + '%';
                 }
             });
 
-            // Kollision mit Wänden
-            if (spaceship.x < 0 || spaceship.x > canvasWidth || spaceship.y < 0 || spaceship.y > canvasHeight) {
-                gameOver = true;
-            }
-
-            // Tankanzeige
-            tankElement.textContent = spaceship.tank.toFixed(0);
+            // Kollision mit Wänden (nicht nötig, da Raumschiff zentriert bleibt)
+            // Stattdessen könnte man Kollision mit oberen und unteren Grenzen der "Hölle" implementieren
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-            spaceship.draw();
+
+            // Zeichne Hintergrund (optional)
+            ctx.fillStyle = '#1a1a1a';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Zeichne Gems
             gems.forEach(gem => gem.draw());
+
+            // Zeichne Plattformen
             platforms.forEach(platform => platform.draw());
+
+            // Zeichne Raumschiff in der Mitte
+            spaceship.draw();
+
+            // Zeichne Score
+            ctx.fillStyle = 'yellow';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Score: ${spaceship.score}`, canvasWidth / 2, 30);
         }
 
         function gameLoop() {
@@ -246,7 +384,7 @@
             gameLoop();
         });
 
-        // Start das Spiel
+        // Starte das Spiel
         init();
         gameLoop();
     </script>
