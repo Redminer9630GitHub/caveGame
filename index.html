@@ -2,391 +2,200 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Cave Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raumschiff Spiel</title>
     <style>
         body {
             margin: 0;
-            background-color: #000;
             overflow: hidden;
+            background-color: #000;
+            color: white;
             font-family: Arial, sans-serif;
-            color: #fff;
         }
-        #gameCanvas {
+        canvas {
             display: block;
-            margin: 0 auto;
-            background-color: #2c2c2c;
+            background-color: #222;
         }
         #info {
             position: absolute;
             top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            text-align: center;
-            z-index: 1;
+            left: 10px;
             font-size: 20px;
         }
-        #tankContainer {
+        #upgrade-panel {
             position: absolute;
-            top: 10px;
-            right: 10px;
-            width: 200px;
-            height: 20px;
-            background-color: #555;
-            border: 2px solid #fff;
-            border-radius: 5px;
-            overflow: hidden;
-            z-index: 1;
-        }
-        #tankBar {
-            width: 100%;
-            height: 100%;
-            background-color: #00ff00;
-        }
-        #abilities {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            z-index: 1;
-        }
-        .ability {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            background-color: rgba(50, 50, 50, 0.8);
-            padding: 5px 10px;
+            top: 50px;
+            left: 10px;
+            font-size: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px;
             border-radius: 5px;
         }
-        .ability img {
-            width: 24px;
-            height: 24px;
-        }
-        #gameOver {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 48px;
-            display: none;
-            z-index: 2;
-            color: red;
-        }
-        #restart {
-            position: absolute;
-            top: 60%;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
-            font-size: 24px;
-            display: none;
-            cursor: pointer;
-            z-index: 2;
-            background-color: #444;
-            border: 2px solid #fff;
-            border-radius: 5px;
-            color: #fff;
+        .upgrade {
+            margin-bottom: 5px;
         }
     </style>
 </head>
 <body>
     <div id="info">
-        <div>Score: <span id="score">0</span></div>
+        <p>Punkte: <span id="score">0</span></p>
+        <p>Tank: <progress id="fuel" value="100" max="100"></progress></p>
     </div>
-    <div id="tankContainer">
-        <div id="tankBar"></div>
+    <div id="upgrade-panel">
+        <h3>Upgrades</h3>
+        <div id="upgrades"></div>
     </div>
-    <div id="abilities">
-        <div class="ability">
-            <img src="fuel.png" alt="Fuel">
-            <span>Fuel Engine: <span id="fuel_engine">1</span> +<span id="fuel_percentage">10</span>%</span>
-        </div>
-        <div class="ability">
-            <img src="acceleration.png" alt="Acceleration">
-            <span>Acceleration Engine: <span id="acceleration_engine">1</span> +<span id="acceleration_percentage">10</span>%</span>
-        </div>
-        <div class="ability">
-            <img src="attraction.png" alt="Attraction">
-            <span>Attraction Engine: <span id="attraction_engine">1</span> +<span id="attraction_percentage">10</span>%</span>
-        </div>
-    </div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="gameOver">Game Over</div>
-    <button id="restart">Neustarten</button>
-
+    <canvas id="gameCanvas"></canvas>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        const scoreElement = document.getElementById('score');
-        const tankBar = document.getElementById('tankBar');
-
-        const fuelEngine = document.getElementById('fuel_engine');
-        const fuelPercentage = document.getElementById('fuel_percentage');
-        const accelerationEngine = document.getElementById('acceleration_engine');
-        const accelerationPercentage = document.getElementById('acceleration_percentage');
-        const attractionEngine = document.getElementById('attraction_engine');
-        const attractionPercentage = document.getElementById('attraction_percentage');
-
-        const gameOverElement = document.getElementById('gameOver');
-        const restartButton = document.getElementById('restart');
-
-        const canvasWidth = canvas.width;
-        const canvasHeight = canvas.height;
-
-        let keys = {};
-
-        document.addEventListener('keydown', (e) => {
-            keys[e.code] = true;
-        });
-
-        document.addEventListener('keyup', (e) => {
-            keys[e.code] = false;
-        });
-
-        class Spaceship {
-            constructor() {
-                this.width = 40;
-                this.height = 40;
-                this.x = canvasWidth / 2;
-                this.y = canvasHeight / 2;
-                this.speed = 5;
-                this.color = 'white';
-                this.tank = 100;
-                this.score = 0;
-                this.upgrades = {
-                    fuel: 1,
-                    acceleration: 1,
-                    attraction: 1
-                };
-                this.upgradePercent = {
-                    fuel: 10,
-                    acceleration: 10,
-                    attraction: 10
-                };
-            }
-
-            draw() {
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y - this.height / 2);
-                ctx.lineTo(this.x - this.width / 2, this.y + this.height / 2);
-                ctx.lineTo(this.x + this.width / 2, this.y + this.height / 2);
-                ctx.closePath();
-                ctx.fill();
-            }
-
-            update() {
-                // Bewegung wird durch die Kamera simuliert
-                // Hier könnte man später die Bewegungslogik hinzufügen
-            }
-        }
-
-        class Gem {
-            constructor(x, y, type) {
-                this.x = x;
-                this.y = y;
-                this.radius = 10;
-                this.type = type; // 'yellow' oder 'pink'
-                this.color = type === 'yellow' ? 'yellow' : '#d63384'; // Dunkelere Farbe für pink
-                this.collected = false;
-            }
-
-            draw() {
-                if (!this.collected) {
-                    ctx.fillStyle = this.color;
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-        }
-
-        class Platform {
-            constructor(x, y, number) {
-                this.x = x;
-                this.y = y;
-                this.width = 100;
-                this.height = 20;
-                this.number = number;
-            }
-
-            draw() {
-                ctx.fillStyle = 'gray';
-                ctx.fillRect(this.x, this.y, this.width, this.height);
-                ctx.fillStyle = 'black';
-                ctx.font = '16px Arial';
-                ctx.fillText(this.number, this.x + this.width / 2 - 5, this.y + this.height / 2 + 5);
-            }
-        }
-
-        let spaceship;
+        // Spielvariablen
+        let score = 0;
+        let fuel = 100;
         let gems = [];
         let platforms = [];
+        let ship = { x: canvas.width / 2, y: canvas.height - 50, width: 30, height: 15, skin: 'skin1', maxFuel: 100 };
+        let gravity = 0.1;
+        let speed = 5;
         let gameOver = false;
 
-        // Hintergrundbewegung
-        let bgOffset = 0;
+        // Upgrade System
+        const ships = [
+            {
+                id: 1,
+                upgrades: [
+                    { price: 1, reward: { m: 5 } },
+                    { price: 1, reward: {} },
+                    { price: 2, reward: { r: 6 } },
+                    { price: 3, reward: { a: 10 } },
+                    { price: 5, reward: { n: true } },
+                    { price: 8, reward: { m: 16 } },
+                    { price: 13, reward: { a: 30 } },
+                    { price: 21, reward: { r: 40 } },
+                ],
+                skin: 'skin1'
+            },
+            // Weitere Schiffe können hier hinzugefügt werden
+        ];
 
-        function init() {
-            spaceship = new Spaceship();
-            gems = [];
-            platforms = [];
-            gameOver = false;
-            gameOverElement.style.display = 'none';
-            restartButton.style.display = 'none';
-            scoreElement.textContent = spaceship.score;
-            tankBar.style.width = spaceship.tank + '%';
+        let currentShipIndex = 0;
 
-            // Reset Fähigkeiten
-            spaceship.upgrades = { fuel: 1, acceleration: 1, attraction: 1 };
-            spaceship.upgradePercent = { fuel: 10, acceleration: 10, attraction: 10 };
-            updateAbilitiesUI();
-
-            // Erzeuge Gems
-            for (let i = 0; i < 50; i++) {
-                let type = Math.random() > 0.8 ? 'pink' : 'yellow'; // Pink seltener
-                let x = Math.random() * (canvasWidth - 20) + 10;
-                let y = Math.random() * 3000 - 1500; // Hölle sehr weit (±1500px)
-                gems.push(new Gem(x, y, type));
-            }
-
-            // Erzeuge Plattformen
-            for (let i = 1; i <= 50; i++) {
-                let x = Math.random() * (canvasWidth - 100);
-                let y = i * 300; // Mindesthöhe von 300px zwischen den Plattformen
-                platforms.push(new Platform(x, y, i));
-            }
-
-            bgOffset = 0;
+        // Funktionen zum Zeichnen des Schiffs und der Gems
+        function drawShip() {
+            ctx.fillStyle = 'white';
+            ctx.fillRect(ship.x, ship.y, ship.width, ship.height);
         }
 
-        function updateAbilitiesUI() {
-            fuelEngine.textContent = spaceship.upgrades.fuel;
-            fuelPercentage.textContent = spaceship.upgradePercent.fuel;
-            accelerationEngine.textContent = spaceship.upgrades.acceleration;
-            accelerationPercentage.textContent = spaceship.upgradePercent.acceleration;
-            attractionEngine.textContent = spaceship.upgrades.attraction;
-            attractionPercentage.textContent = spaceship.upgradePercent.attraction;
+        function createGem(type) {
+            return { x: Math.random() * canvas.width, y: Math.random() * canvas.height, color: type === 'pink' ? 'pink' : 'yellow', collected: false, type: type };
         }
 
-        function update() {
-            // Tankverbrauch
-            spaceship.tank -= 0.05;
-            if (spaceship.tank <= 0) {
-                gameOver = true;
-            }
-
-            // Bewegungsgeschwindigkeit basierend auf Upgrades
-            let currentSpeed = spaceship.speed + spaceship.upgrades.acceleration;
-
-            if (keys['ArrowLeft']) {
-                bgOffset += currentSpeed;
-            }
-            if (keys['ArrowRight']) {
-                bgOffset -= currentSpeed;
-            }
-            if (keys['ArrowUp']) {
-                bgOffset += currentSpeed;
-            }
-            if (keys['ArrowDown']) {
-                bgOffset -= currentSpeed;
-            }
-
-            // Update Gems
+        function drawGems() {
             gems.forEach(gem => {
-                if (!gem.collected) {
-                    // Simuliere Bewegung nach oben
-                    gem.y += currentSpeed;
-                    if (gem.y > canvasHeight + 50) {
-                        gem.y = -50;
-                        gem.x = Math.random() * (canvasWidth - 20) + 10;
-                    }
-
-                    // Kollision mit Raumschiff (in der Mitte)
-                    let dist = Math.hypot(spaceship.x - gem.x, spaceship.y - gem.y);
-                    if (dist < spaceship.width / 2 + gem.radius) {
-                        gem.collected = true;
-                        if (gem.type === 'yellow') {
-                            spaceship.score += 10;
-                        } else if (gem.type === 'pink') {
-                            spaceship.upgrades.fuel = Math.min(spaceship.upgrades.fuel + 1, 5);
-                            spaceship.upgradePercent.fuel = Math.min(spaceship.upgradePercent.fuel + 10, 100);
-                            // Beispiel: Du kannst weitere Upgrades hinzufügen
-                            // spaceship.upgrades.acceleration = Math.min(spaceship.upgrades.acceleration + 1, 5);
-                            // spaceship.upgradePercent.acceleration = Math.min(spaceship.upgradePercent.acceleration + 10, 100);
-                        }
-                        scoreElement.textContent = spaceship.score;
-                        updateAbilitiesUI();
-                    }
-                }
+                ctx.fillStyle = gem.color;
+                ctx.beginPath();
+                ctx.arc(gem.x, gem.y, 5, 0, Math.PI * 2);
+                ctx.fill();
             });
+        }
 
-            // Update Plattformen
+        function createPlatform() {
+            return { x: Math.random() * (canvas.width - 60), y: Math.random() * (canvas.height - 200), width: 60, height: 10 };
+        }
+
+        function drawPlatforms() {
             platforms.forEach(platform => {
-                // Simuliere Bewegung nach oben
-                platform.y += currentSpeed;
-                if (platform.y > canvasHeight + 10) {
-                    platform.y = -10;
-                    platform.x = Math.random() * (canvasWidth - platform.width);
-                    platform.number = platforms.length + 1;
-                }
-
-                // Kollision mit Plattformen (für Tankauffüllung)
-                if (spaceship.x > platform.x && spaceship.x < platform.x + platform.width &&
-                    spaceship.y + spaceship.height / 2 > platform.y && spaceship.y - spaceship.height / 2 < platform.y + platform.height) {
-                    spaceship.tank = Math.min(spaceship.tank + 20, 100);
-                    tankBar.style.width = spaceship.tank + '%';
-                }
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(platform.x, platform.y, platform.width, platform.height);
             });
-
-            // Kollision mit Wänden (nicht nötig, da Raumschiff zentriert bleibt)
-            // Stattdessen könnte man Kollision mit oberen und unteren Grenzen der "Hölle" implementieren
         }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
-
-            // Zeichne Hintergrund (optional)
-            ctx.fillStyle = '#1a1a1a';
-            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-
-            // Zeichne Gems
-            gems.forEach(gem => gem.draw());
-
-            // Zeichne Plattformen
-            platforms.forEach(platform => platform.draw());
-
-            // Zeichne Raumschiff in der Mitte
-            spaceship.draw();
-
-            // Zeichne Score
-            ctx.fillStyle = 'yellow';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText(`Score: ${spaceship.score}`, canvasWidth / 2, 30);
+        // Upgrades anzeigen
+        function renderUpgrades() {
+            const upgradeDiv = document.getElementById('upgrades');
+            upgradeDiv.innerHTML = '';
+            const upgrades = ships[currentShipIndex].upgrades;
+            upgrades.forEach((upgrade, index) => {
+                const div = document.createElement('div');
+                div.className = 'upgrade';
+                div.innerHTML = `Upgrade ${index + 1}: Preis ${upgrade.price} pinke Gems`;
+                div.onclick = () => buyUpgrade(index);
+                upgradeDiv.appendChild(div);
+            });
         }
 
-        function gameLoop() {
-            if (!gameOver) {
-                update();
-                draw();
-                requestAnimationFrame(gameLoop);
-            } else {
-                gameOverElement.style.display = 'block';
-                restartButton.style.display = 'block';
+        // Funktion, um Upgrades zu kaufen
+        function buyUpgrade(upgradeIndex) {
+            const upgrade = ships[currentShipIndex].upgrades[upgradeIndex];
+            if (score >= upgrade.price) {
+                score -= upgrade.price;
+                if (upgrade.reward.m) ship.maxFuel += upgrade.reward.m; // Max. Fuel erhöhen
+                if (upgrade.reward.n) {
+                    currentShipIndex++; // Zum nächsten Schiff wechseln
+                    renderUpgrades(); // Upgrades neu rendern
+                }
             }
         }
 
-        restartButton.addEventListener('click', () => {
-            init();
-            gameLoop();
-        });
+        // Hauptspiel-Loop
+        function update() {
+            if (gameOver) return;
 
-        // Starte das Spiel
-        init();
-        gameLoop();
+            // Schwerkraft anwenden
+            ship.y += speed;
+            speed -= gravity;
+
+            // Gems und Plattformen generieren
+            if (Math.random() < 0.4) {
+                gems.push(createGem('yellow'));
+            } else if (Math.random() < 0.1) {
+                gems.push(createGem('pink'));
+            } else {
+                platforms.push(createPlatform());
+            }
+
+            // Kollision mit Gems und Plattformen
+            gems.forEach(gem => {
+                if (!gem.collected && ship.x < gem.x + 5 && ship.x + ship.width > gem.x && ship.y < gem.y + 5 && ship.y + ship.height > gem.y) {
+                    gem.collected = true;
+                    score++;
+                    fuel = Math.min(fuel + 5, ship.maxFuel); // Tank füllen
+                }
+            });
+
+            platforms.forEach(platform => {
+                if (ship.x < platform.x + platform.width && ship.x + ship.width > platform.x && ship.y + ship.height > platform.y && ship.y < platform.y + platform.height) {
+                    speed = 5; // Reset Geschwindigkeit
+                    fuel = Math.min(fuel + 10, ship.maxFuel); // Tank füllen
+                }
+            });
+
+            // Game Over Bedingungen
+            if (ship.y > canvas.height) {
+                gameOver = true;
+                alert("Game Over! Du hast " + score + " Punkte erreicht.");
+            }
+
+            // Zeichnen
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawShip();
+            drawGems();
+            drawPlatforms();
+
+            // Update UI
+            document.getElementById('score').innerText = score;
+            document.getElementById('fuel').value = fuel;
+
+            // Wiederhole das Update
+            requestAnimationFrame(update);
+        }
+
+        // Spiel starten und Upgrades anzeigen
+        renderUpgrades();
+        update();
     </script>
 </body>
 </html>
